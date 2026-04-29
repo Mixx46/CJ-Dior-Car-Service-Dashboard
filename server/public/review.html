@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rate Your Ride — CJ Dior Car Service</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0a0a; color: #fff; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+    .card { background: #111; border: 1px solid #222; border-radius: 20px; padding: 32px; max-width: 420px; width: 100%; }
+    .logo { width: 48px; height: 48px; background: #d4a843; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #000; font-weight: 800; font-size: 16px; margin: 0 auto 16px; }
+    h1 { text-align: center; font-size: 20px; margin-bottom: 4px; }
+    .subtitle { text-align: center; color: #666; font-size: 13px; margin-bottom: 24px; }
+    .trip-info { background: #1a1a1a; border: 1px solid #222; border-radius: 12px; padding: 16px; margin-bottom: 24px; }
+    .trip-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #999; margin-bottom: 6px; }
+    .trip-row:last-child { margin-bottom: 0; }
+    .trip-row strong { color: #ddd; }
+    .stars { display: flex; justify-content: center; gap: 8px; margin-bottom: 24px; }
+    .star { font-size: 40px; cursor: pointer; transition: transform 0.15s; color: #333; user-select: none; }
+    .star:hover { transform: scale(1.2); }
+    .star.active { color: #d4a843; }
+    .star.hover-preview { color: #d4a843; opacity: 0.6; }
+    textarea { width: 100%; background: #1a1a1a; border: 1px solid #333; color: #fff; border-radius: 12px; padding: 12px; font-size: 14px; resize: none; min-height: 80px; margin-bottom: 16px; font-family: inherit; }
+    textarea:focus { outline: none; border-color: #d4a843; }
+    textarea::placeholder { color: #444; }
+    .btn { width: 100%; padding: 14px; background: #d4a843; color: #000; border: none; border-radius: 12px; font-size: 15px; font-weight: 700; cursor: pointer; transition: background 0.2s; }
+    .btn:hover { background: #e0b84f; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .error { background: #2a1515; border: 1px solid #4a2020; color: #f87171; padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; text-align: center; }
+    .success { text-align: center; padding: 40px 20px; }
+    .success .check { font-size: 48px; margin-bottom: 16px; }
+    .success h2 { font-size: 20px; margin-bottom: 8px; }
+    .success p { color: #666; font-size: 14px; }
+    .label { font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; margin-bottom: 8px; }
+    .already { text-align: center; padding: 40px 20px; color: #666; }
+    .already h2 { color: #fff; margin-bottom: 8px; }
+    .loading { text-align: center; padding: 40px; color: #666; }
+  </style>
+</head>
+<body>
+  <div class="card" id="app">
+    <div class="loading">Loading your ride details…</div>
+  </div>
+
+  <script>
+    const token = window.location.pathname.split('/').pop();
+    const app = document.getElementById('app');
+
+    async function load() {
+      try {
+        const res = await fetch(`/api/reviews/public/${token}`);
+        const data = await res.json();
+
+        if (!res.ok) {
+          app.innerHTML = `<div class="already"><div class="logo">CJ</div><h2>Link Not Found</h2><p>This review link is invalid or has expired.</p></div>`;
+          return;
+        }
+
+        if (data.alreadySubmitted) {
+          app.innerHTML = `<div class="already"><div class="logo">CJ</div><h2>Already Reviewed</h2><p>You've already submitted your review. Thank you!</p><div style="margin-top:16px;font-size:32px">${'★'.repeat(data.rating)}${'☆'.repeat(5-data.rating)}</div></div>`;
+          return;
+        }
+
+        renderForm(data);
+      } catch {
+        app.innerHTML = `<div class="already"><div class="logo">CJ</div><h2>Something went wrong</h2><p>Please try again later.</p></div>`;
+      }
+    }
+
+    function fmtDate(str) {
+      if (!str) return '';
+      const d = new Date(str.includes('T') ? str : str.replace(' ', 'T'));
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
+    }
+
+    function renderForm(data) {
+      let selectedRating = 0;
+
+      app.innerHTML = `
+        <div class="logo">CJ</div>
+        <h1>Rate Your Ride</h1>
+        <p class="subtitle">We'd love to hear about your experience</p>
+
+        <div class="trip-info">
+          ${data.driver_name ? `<div class="trip-row">🚘 <strong>Driver:</strong> ${data.driver_name}</div>` : ''}
+          ${data.pickup_datetime ? `<div class="trip-row">📅 <strong>${fmtDate(data.pickup_datetime)}</strong></div>` : ''}
+          ${data.pickup_address ? `<div class="trip-row">📍 ${data.pickup_address}</div>` : ''}
+          ${data.dropoff_address ? `<div class="trip-row">📍 ${data.dropoff_address}</div>` : ''}
+          ${data.vehicle_assigned ? `<div class="trip-row">🚗 ${data.vehicle_assigned}</div>` : ''}
+        </div>
+
+        <div class="label">How was your ride?</div>
+        <div class="stars" id="stars">
+          ${[1,2,3,4,5].map(n => `<span class="star" data-n="${n}">★</span>`).join('')}
+        </div>
+
+        <div class="label">Leave a comment (optional)</div>
+        <textarea id="comment" placeholder="Tell us about your experience…"></textarea>
+
+        <div id="error-box"></div>
+        <button class="btn" id="submit-btn" disabled>Submit Review</button>
+      `;
+
+      const stars = app.querySelectorAll('.star');
+      const btn = app.querySelector('#submit-btn');
+
+      stars.forEach(star => {
+        star.addEventListener('mouseenter', () => {
+          const n = +star.dataset.n;
+          stars.forEach(s => {
+            const sn = +s.dataset.n;
+            s.classList.toggle('hover-preview', sn <= n && sn > selectedRating);
+          });
+        });
+        star.addEventListener('mouseleave', () => {
+          stars.forEach(s => s.classList.remove('hover-preview'));
+        });
+        star.addEventListener('click', () => {
+          selectedRating = +star.dataset.n;
+          stars.forEach(s => s.classList.toggle('active', +s.dataset.n <= selectedRating));
+          btn.disabled = false;
+        });
+      });
+
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        btn.textContent = 'Submitting…';
+        const errBox = app.querySelector('#error-box');
+        errBox.innerHTML = '';
+
+        try {
+          const res = await fetch(`/api/reviews/public/${token}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ rating: selectedRating, comment: app.querySelector('#comment').value }),
+          });
+          if (!res.ok) {
+            const d = await res.json();
+            throw new Error(d.error || 'Failed');
+          }
+          app.innerHTML = `<div class="success"><div class="logo">CJ</div><div class="check">⭐</div><h2>Thank You!</h2><p>Your ${selectedRating}-star review has been submitted.<br>We appreciate your feedback.</p></div>`;
+        } catch (err) {
+          errBox.innerHTML = `<div class="error">${err.message}</div>`;
+          btn.disabled = false;
+          btn.textContent = 'Submit Review';
+        }
+      });
+    }
+
+    load();
+  </script>
+</body>
+</html>
